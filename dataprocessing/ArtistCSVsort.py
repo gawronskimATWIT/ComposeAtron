@@ -15,11 +15,11 @@ df.drop('country_lastfm', axis=1, inplace=True)
 df.drop('listeners_lastfm', axis=1, inplace=True)
 df.drop('scrobbles_lastfm', axis=1, inplace=True)
 df.drop('ambiguous_artist', axis=1, inplace=True)
+df.drop('artist_lastfm', axis=1, inplace=True)
  
 
 rapHiphopArtists = df[df['tags_mb'].str.contains('rap|hiphop|hip hop', case=False, na=False)]
 
 
-#tags_lastfm,listeners_lastfm,scrobbles_lastfm,ambiguous_artist
 
 pd.DataFrame.to_csv(rapHiphopArtists, 'rapHiphopArtists.csv')
