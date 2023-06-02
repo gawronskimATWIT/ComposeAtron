@@ -20,27 +20,30 @@ for index, row in df.iterrows():
         albumNameLengths = {}
 
         for album in albums['items']:
-            
             albumID = album['id']
             albumName = album['name']
             albumNameLengths[albumID] = len(albumName)
 
+        # Deluxe editions are often the more complete version of an album.
+        # Since it won't exactly come as "deluxe" in the album name we can just
+        # Choose the album with the longest name from a set of duplicates. 
         longestAlbumID = max(albumNameLengths, key = albumNameLengths.get)
 
-            # Fetch the album's tracks
+        # Fetch the album's tracks
         tracks = spotify.album_tracks(longestAlbumID)
 
         for track in tracks['items']:
             # Create a JSON object for the song
                 song_data = {
-                'artist_name': artist_name,
+                'artist_name': artistName,
                 'song_name': track['name'],
                 'song_id': track['id'],
                 'album_name': albums['items'][0]['name'],
-                'album_id': longest_album_id,
+                'album_id': longestAlbumID,
                 'release_date': albums['items'][0]['release_date']
                 }
 
-
-            
+                filename = f'{artistName}_{track["id"]}.json' 
+                with open(filename, 'w') as file: 
+                    json.dump(song_data, file, indent=4)
         
