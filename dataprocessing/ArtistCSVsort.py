@@ -2,13 +2,14 @@ import pandas as pd
 
 import os
 
+
+# download this file from https://www.kaggle.com/pieca111/music-artists-popularity
+# and add artists.csv into dataprocessing folder
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
 print(BASEDIR)
 csv = os.path.join(BASEDIR, 'artists.csv')
 
 df =  pd.read_csv(csv)
-print(df.head())
-
 
 df.drop('mbid', axis=1, inplace=True)
 df.drop('country_lastfm', axis=1, inplace=True)

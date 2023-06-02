@@ -1,7 +1,8 @@
 import subprocess
 import os
 
-
+#TODO: We need to figure out how to solve the rate limiting issue/proxy issue
+#Filter out music videos
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
 
 def downloadSong(songName):

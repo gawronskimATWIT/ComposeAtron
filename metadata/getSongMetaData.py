@@ -6,6 +6,9 @@ spotify = SpotifyAuth.getSpotify()
 df = pd.read_csv('dataprocessing/rapHiphopArtists.csv')
 
 
+
+#TODO:
+#Add rate limiting measures, and perhaps parallelize the requests
 for index, row in df.iterrows():
     artistName = row['artist_mb']
 
@@ -31,7 +34,10 @@ for index, row in df.iterrows():
 
         # Fetch the album's tracks
         tracks = spotify.album_tracks(longestAlbumID)
+        
 
+        ##TODO:
+        #Grab more metadata from each song
         for track in tracks['items']:
             # Create a JSON object for the song
                 song_data = {
@@ -43,6 +49,12 @@ for index, row in df.iterrows():
                 'release_date': albums['items'][0]['release_date']
                 }
 
+
+
+                #TODO:
+                #Replace file creation with database insertion
+                #Collection should be the artists name
+                #With each song being a document
                 filename = f'{artistName}_{track["id"]}.json' 
                 with open(filename, 'w') as file: 
                     json.dump(song_data, file, indent=4)
