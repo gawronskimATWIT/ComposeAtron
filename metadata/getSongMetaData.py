@@ -2,6 +2,9 @@ import SpotifyAuth
 import pandas as pd
 import json
 
+
+#Requires pandas and spotipy to be installed
+
 spotify = SpotifyAuth.getSpotify()
 df = pd.read_csv('dataprocessing/rapHiphopArtists.csv')
 
