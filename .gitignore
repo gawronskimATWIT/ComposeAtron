@@ -1,2 +1,5 @@
 tokens.json
 /dataprocessing/artists.csv
+.cache
+/metadata/__pycache__
+.DS_Store
