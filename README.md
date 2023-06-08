@@ -6,22 +6,28 @@
   [install python](https://www.python.org/downloads/)
   <br/>
 - ffmpeg
+  <br/>
   `pip install ffmpeg`
   <br/>
 - yt-dlp
+  <br/>
   `pip install yt-dlp`
   <br/>
 - Install `ffmpeg` to your local machine
+  <br/>
   [how to install ffmpeg on Windows](https://phoenixnap.com/kb/ffmpeg-windows)
+  <br/>
   [how to install ffmpeg on Mac](https://phoenixnap.com/kb/ffmpeg-mac)
   <br/>
 - Check the path to ffmpeg
   <br/>
 
   - Open cmd on windows and type:
+    <br/>
     `where ffmpeg` on Windows
     <br/>
   - Open terminal on mac and type:
+    <br/>
     `which ffmpeg` on Mac
     <br/>
 

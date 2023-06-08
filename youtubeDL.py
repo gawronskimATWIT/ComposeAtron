@@ -1,6 +1,5 @@
 import subprocess
 import os
-import sys
 
 # Uses yt-dlp 
 # https://github.com/yt-dlp/yt-dlp
@@ -27,4 +26,4 @@ def downloadSong(songName):
 
     subprocess.run(command)
    
-downloadSong("Have it all")    
+downloadSong("Rick Flex")    
