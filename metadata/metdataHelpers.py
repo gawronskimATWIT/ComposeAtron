@@ -38,5 +38,5 @@ def isRapArtist(artist_name,spotify):
         return None
 
 # testing the function with a valid artist name
-print(validateArtistName("T.I."))
+#print(validateArtistName("T.I."))
 

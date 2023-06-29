@@ -21,7 +21,6 @@ def make_request(spotify_func, *args, **kwargs):
 
 
 pbar = tqdm(total=df.shape[0], ncols=80)
-
 for index, row in df.iterrows():
     
     artistName = row['artist_mb']
@@ -50,9 +49,18 @@ for index, row in df.iterrows():
         # Fetch the album's tracks
             tracks = make_request(spotify.album_tracks, albumID)
             time.sleep(uniform(0.1, 0.3)) # delay between each request
+            
+
+            trackIDs = []
+            for track in tracks['items']:
+                trackIDs.append(track['id'])
+            
+            
+            audioFeatures = spotify.audio_features(trackIDs)
 
         # Grab more metadata from each song
-            for track in tracks['items']:
+            for track, features in zip(tracks['items'],audioFeatures):
+
             # Create a JSON object for the song
                 song_data = {
                 'artist_name': artistName,
@@ -60,8 +68,22 @@ for index, row in df.iterrows():
                 'song_id': track['id'],
                 'album_name': albumName,
                 'album_id': albumID,
-                'release_date': album['release_date']
-            }
+                'release_date': album['release_date'],
+                'acousticness': features.get('acousticness'),
+                'danceability': features.get('danceability'),
+                'duration_ms': features.get('duration_ms'),
+                'energy': features.get('energy'),
+                'instrumentalness': features.get('instrumentalness'),
+                'key': features.get('key'),
+                'liveness': features.get('liveness'),
+                'loudness': features.get('loudness'),
+                'mode': features.get('mode'),
+                'speechiness': features.get('speechiness'),
+                'tempo': features.get('tempo'),
+                'time_signature': features.get('time_signature'),
+                'valence': features.get('valence')
+         }
+
 
             # Use the artist's name as the collection name
                 collection = db[artistName]
