@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  composeatron1:
+    image: composeatron1
+    build:
+      context: .
+      dockerfile: ./Dockerfile
