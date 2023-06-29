@@ -5,23 +5,23 @@ import json
 spotify = SpotifyAuth.getSpotify()
 df = pd.read_csv('dataprocessing/rapHiphopArtists.csv')
 
-
-
 #TODO:
 #Add rate limiting measures, and perhaps parallelize the requests
 for index, row in df.iterrows():
     artistName = row['artist_mb']
 
+    #  first spotify call search for the artist
     artistResult = spotify.search(q='artist:' + artistName, type='artist', limit = 1)
 
     if len(artistResult['artists']['items'] ) > 0:
         artistID = artistResult['artists']['items'][0]['id']
 
-        #Get albums
+        #Get albums from the artist
         albums = spotify.artist_albums(artistID, album_type='album')
 
         albumNameLengths = {}
 
+        # Get each album's metadata (name, id, etc.)
         for album in albums['items']:
             albumID = album['id']
             albumName = album['name']
@@ -32,7 +32,7 @@ for index, row in df.iterrows():
         # Choose the album with the longest name from a set of duplicates. 
         longestAlbumID = max(albumNameLengths, key = albumNameLengths.get)
 
-        # Fetch the album's tracks
+        # For each album - Fetch the album's tracks
         tracks = spotify.album_tracks(longestAlbumID)
         
 
@@ -48,7 +48,6 @@ for index, row in df.iterrows():
                 'album_id': longestAlbumID,
                 'release_date': albums['items'][0]['release_date']
                 }
-
 
 
                 #TODO:
