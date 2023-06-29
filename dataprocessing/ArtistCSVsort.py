@@ -2,7 +2,6 @@ import pandas as pd
 
 import os
 
-
 # download this file from https://www.kaggle.com/pieca111/music-artists-popularity
 # and add artists.csv into dataprocessing folder
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
