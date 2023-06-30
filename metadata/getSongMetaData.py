@@ -7,6 +7,9 @@ from pymongo import MongoClient
 from random import uniform
 from retrying import retry
 from tqdm import tqdm
+from requests.exceptions import ReadTimeout
+
+
 
 spotify = SpotifyAuth.getSpotify()
 df = pd.read_csv('dataprocessing/rapHiphopArtists.csv')
@@ -17,6 +20,8 @@ db = client['Songs']
 @retry(stop_max_attempt_number=3, wait_exponential_multiplier=1000, wait_exponential_max=10000)
 def make_request(spotify_func, *args, **kwargs):
     return spotify_func(*args, **kwargs)
+
+
 
 
 
@@ -38,8 +43,15 @@ for index, row in df.iterrows():
             artistID = artistResult['artists']['items'][0]['id']
 
             #Get albums
-            albums = make_request(spotify.artist_albums, artistID, album_type='album')
-            time.sleep(uniform(0.1, 0.3)) # delay between each request
+            #Plus timeout check
+            try: 
+                albums = make_request(spotify.artist_albums, artistID, album_type='album')
+                time.sleep(uniform(0.1, 0.3)) # delay between each request
+            except ReadTimeout:
+                print('Spotify timed out... trying again...')
+                albums = make_request(spotify.artist_albums, artistID, album_type='album')
+                time.sleep(uniform(0.1, 0.3)) # delay between each request
+
 
         # Get all albums
         for album in albums['items']:
@@ -47,9 +59,14 @@ for index, row in df.iterrows():
             albumName = album['name']
 
         # Fetch the album's tracks
-            tracks = make_request(spotify.album_tracks, albumID)
-            time.sleep(uniform(0.1, 0.3)) # delay between each request
-            
+            try:
+                tracks = make_request(spotify.album_tracks, albumID)
+                time.sleep(uniform(0.1, 0.3)) # delay between each request
+            except ReadTimeout:
+                print('Spotify timed out... trying again...')
+                tracks = make_request(spotify.album_tracks, albumID)
+                time.sleep(uniform(0.1, 0.3))
+
 
             trackIDs = []
             for track in tracks['items']:
