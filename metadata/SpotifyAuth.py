@@ -11,4 +11,4 @@ def getSpotify():
     clientSecret = json.load(open('tokens.json'))['spotifyClientSecret']
     authManager = SpotifyClientCredentials(client_id=clientID, client_secret=clientSecret)
 
-    return spotipy.Spotify(auth_manager=authManager)
+    return spotipy.Spotify(auth_manager=authManager,requests_timeout=10,retries=10);

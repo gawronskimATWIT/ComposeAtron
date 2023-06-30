@@ -8,9 +8,6 @@ def validateArtistName(artist_name):
     if artist_name.startswith('system.'):
         raise ValueError("Artist name cannot start with 'system.' prefix")
 
-    if not artist_name[0].isalpha() and not artist_name[0] == '_':
-        raise ValueError("Artist name should start with an underscore or a letter character")
-
     # replacing $ with dollarSign
     artist_name = artist_name.replace('$', 'dollarSign')
 
