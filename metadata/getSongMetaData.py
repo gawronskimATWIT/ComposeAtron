@@ -1,3 +1,4 @@
+import os
 import SpotifyAuth
 import pandas as pd
 import json
@@ -22,11 +23,19 @@ def make_request(spotify_func, *args, **kwargs):
     return spotify_func(*args, **kwargs)
 
 
+#Saving my spot if crash
+lastIndexFile = 'metadata/lastIndex.txt'
 
+startIndex = 0
+if os.path.exists(lastIndexFile):
+        with open(lastIndexFile, 'r') as file:
+            startIndex = int(file.read().strip())
 
+pbar = tqdm(total=df.shape[0] - startIndex, initial=startIndex,  ncols=80)
 
-pbar = tqdm(total=df.shape[0], ncols=80)
 for index, row in df.iterrows():
+    if index < startIndex:
+        continue
     
     artistName = row['artist_mb']
 
@@ -108,4 +117,6 @@ for index, row in df.iterrows():
             # Insert the song data into the collection
                 collection.insert_one(song_data)
         pbar.update(1)
+        with open(lastIndexFile, 'w') as file:
+            file.write(str(index))
 pbar.close()
