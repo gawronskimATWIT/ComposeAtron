@@ -1,60 +1,133 @@
+import os
 import SpotifyAuth
 import pandas as pd
 import json
+import time
+from metdataHelpers import isRapArtist, validateArtistName
+from pymongo import MongoClient
+from random import uniform
+from retrying import retry
+from tqdm import tqdm
+from requests.exceptions import ReadTimeout
+
+
 
 spotify = SpotifyAuth.getSpotify()
 df = pd.read_csv('dataprocessing/rapHiphopArtists.csv')
+client = MongoClient('mongodb://root:rootpassword@192.168.1.73:27017/')
+db = client['Songs']
 
-#TODO:
-#Add rate limiting measures, and perhaps parallelize the requests
+# Define retry mechanism for handling rate limits
+@retry(stop_max_attempt_number=3, wait_exponential_multiplier=1000, wait_exponential_max=10000)
+def make_request(spotify_func, *args, **kwargs):
+    return spotify_func(*args, **kwargs)
+
+
+#Saving my spot if crash
+lastIndexFile = 'metadata/lastIndex.txt'
+
+startIndex = 0
+if os.path.exists(lastIndexFile):
+        with open(lastIndexFile, 'r') as file:
+            startIndex = int(file.read().strip())
+
+pbar = tqdm(total=df.shape[0] - startIndex, initial=startIndex,  ncols=80)
+
 for index, row in df.iterrows():
+    if index < startIndex:
+        continue
+    
     artistName = row['artist_mb']
+    preCleanedName = artistName
+    artistName = validateArtistName(artistName)
 
-    #  first spotify call search for the artist
-    artistResult = spotify.search(q='artist:' + artistName, type='artist', limit = 1)
+    if isRapArtist(artistName,spotify):
+        
+        #API Call to get artist
+        #Fo4r all the $$$ rappers
+        artistResult = make_request(spotify.search, q='artist:' + preCleanedName, type='artist', limit = 1)
+        
+        time.sleep(uniform(0.1, 0.3)) # delay between each request
 
-    if len(artistResult['artists']['items'] ) > 0:
-        artistID = artistResult['artists']['items'][0]['id']
+        #Check if artist exists
+        if len(artistResult['artists']['items'] ) > 0:
+            artistID = artistResult['artists']['items'][0]['id']
 
-        #Get albums from the artist
-        albums = spotify.artist_albums(artistID, album_type='album')
+            #Get albums
+            #Plus timeout check
+            try: 
+                albums = make_request(spotify.artist_albums, artistID, album_type='album')
+                time.sleep(uniform(0.1, 0.3)) # delay between each request
+            except ReadTimeout:
+                print('Spotify timed out... trying again...')
+                albums = make_request(spotify.artist_albums, artistID, album_type='album')
+                time.sleep(uniform(0.1, 0.3)) # delay between each request
 
-        albumNameLengths = {}
 
-        # Get each album's metadata (name, id, etc.)
+        # Get all albums
         for album in albums['items']:
             albumID = album['id']
             albumName = album['name']
-            albumNameLengths[albumID] = len(albumName)
 
-        # Deluxe editions are often the more complete version of an album.
-        # Since it won't exactly come as "deluxe" in the album name we can just
-        # Choose the album with the longest name from a set of duplicates. 
-        longestAlbumID = max(albumNameLengths, key = albumNameLengths.get)
+        # Fetch the album's tracks
+            try:
+                tracks = make_request(spotify.album_tracks, albumID)
+                time.sleep(uniform(0.1, 0.3)) # delay between each request
+            except ReadTimeout:
+                print('Spotify timed out... trying again...')
+                tracks = make_request(spotify.album_tracks, albumID)
+                time.sleep(uniform(0.1, 0.3))
 
-        # For each album - Fetch the album's tracks
-        tracks = spotify.album_tracks(longestAlbumID)
-        
 
-        ##TODO:
-        #Grab more metadata from each song
-        for track in tracks['items']:
+            trackIDs = []
+            for track in tracks['items']:
+                trackIDs.append(track['id'])
+            
+            
+            audioFeatures = spotify.audio_features(trackIDs)
+          
+        # Grab more metadata from each song
+            for track, features in zip(tracks['items'],audioFeatures):
+                if features is None:
+                    print(f"\nAudio features could not be fetched for tracks in album: {albumName}")
+                    continue
+       
             # Create a JSON object for the song
                 song_data = {
                 'artist_name': artistName,
                 'song_name': track['name'],
                 'song_id': track['id'],
-                'album_name': albums['items'][0]['name'],
-                'album_id': longestAlbumID,
-                'release_date': albums['items'][0]['release_date']
-                }
+                'album_name': albumName,
+                'album_id': albumID,
+                'release_date': album['release_date'],
+                'acousticness': features.get('acousticness'),
+                'danceability': features.get('danceability'),
+                'duration_ms': features.get('duration_ms'),
+                'energy': features.get('energy'),
+                'instrumentalness': features.get('instrumentalness'),
+                'key': features.get('key'),
+                'liveness': features.get('liveness'),
+                'loudness': features.get('loudness'),
+                'mode': features.get('mode'),
+                'speechiness': features.get('speechiness'),
+                'tempo': features.get('tempo'),
+                'time_signature': features.get('time_signature'),
+                'valence': features.get('valence')
+         }
 
 
-                #TODO:
-                #Replace file creation with database insertion
-                #Collection should be the artists name
-                #With each song being a document
-                filename = f'{artistName}_{track["id"]}.json' 
-                with open(filename, 'w') as file: 
-                    json.dump(song_data, file, indent=4)
-        
+            # Use the artist's name as the collection name
+                collection = db[artistName]
+
+                existingSong = collection.find_one({'song_id': song_data['song_id']})
+
+                if existingSong is None:
+            # Insert the song data into the collection
+                    collection.insert_one(song_data)
+                else:
+                    print(f"Song {song_data['song_name']} by {artistName} already exists in the database.")
+        pbar.update(1)
+        print(f"\n Finished: {artistName}")
+        with open(lastIndexFile, 'w') as file:
+            file.write(str(index))
+pbar.close()
