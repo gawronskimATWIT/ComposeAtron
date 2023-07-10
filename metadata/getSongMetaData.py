@@ -38,13 +38,15 @@ for index, row in df.iterrows():
         continue
     
     artistName = row['artist_mb']
-
+    preCleanedName = artistName
     artistName = validateArtistName(artistName)
 
     if isRapArtist(artistName,spotify):
-    
+        
         #API Call to get artist
-        artistResult = make_request(spotify.search, q='artist:' + artistName, type='artist', limit = 1)
+        #Fo4r all the $$$ rappers
+        artistResult = make_request(spotify.search, q='artist:' + preCleanedName, type='artist', limit = 1)
+        
         time.sleep(uniform(0.1, 0.3)) # delay between each request
 
         #Check if artist exists
@@ -83,10 +85,13 @@ for index, row in df.iterrows():
             
             
             audioFeatures = spotify.audio_features(trackIDs)
-
+          
         # Grab more metadata from each song
             for track, features in zip(tracks['items'],audioFeatures):
-
+                if features is None:
+                    print(f"\nAudio features could not be fetched for tracks in album: {albumName}")
+                    continue
+       
             # Create a JSON object for the song
                 song_data = {
                 'artist_name': artistName,
@@ -114,9 +119,15 @@ for index, row in df.iterrows():
             # Use the artist's name as the collection name
                 collection = db[artistName]
 
+                existingSong = collection.find_one({'song_id': song_data['song_id']})
+
+                if existingSong is None:
             # Insert the song data into the collection
-                collection.insert_one(song_data)
+                    collection.insert_one(song_data)
+                else:
+                    print(f"Song {song_data['song_name']} by {artistName} already exists in the database.")
         pbar.update(1)
+        print(f"\n Finished: {artistName}")
         with open(lastIndexFile, 'w') as file:
             file.write(str(index))
 pbar.close()

@@ -9,7 +9,7 @@ def validateArtistName(artist_name):
         raise ValueError("Artist name cannot start with 'system.' prefix")
 
     # replacing $ with dollarSign
-    artist_name = artist_name.replace('$', 'dollarSign')
+    artist_name = artist_name.replace('$', 'S')
 
     #Removes leading or trailing "." s  
     artist_name = artist_name.strip('.')
@@ -28,7 +28,7 @@ def isRapArtist(artist_name,spotify):
         artist = result['artists']['items'][0]
         
         # Check if "hip hop" or "rap" is in the artist's genres
-        return any(genre in artist['genres'] for genre in ['hip hop', 'rap'])
+        return any(genre in artist['genres'] for genre in ['hip hop', 'rap', 'alternative hip hop', 'pop rap'])
 
     except IndexError:
         print(f"No artist named {artist_name} found.")
