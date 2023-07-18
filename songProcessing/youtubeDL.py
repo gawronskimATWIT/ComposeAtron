@@ -13,10 +13,12 @@ import shutil
 # get the current directory
 BASEDIR = os.path.dirname(os.path.abspath(__file__))
 
-hostname = json.load(open('server.json'))['serverHostName']
+#hostname = json.load(open('server.json'))['serverHostName']
+hostname = "76.152.217.55"
 port = 22
 username = "user"
-password = json.load(open('server.json'))['serverPassword']
+#password = json.load(open('server.json'))['serverPassword']
+password = "H@ppykid60"
 remote_directory = "/songs"
 local_directory = BASEDIR
 
@@ -46,7 +48,7 @@ def downloadSong(songName, artistName):
                 return destination_path
     return None
 
-client = MongoClient(json.load(open('server.json'))['mongoDB'])
+client = MongoClient("mongodb://root:rootpassword@76.152.217.55:27017/")
 
 try:
     # Connect to the MongoDB server
@@ -91,11 +93,12 @@ try:
             break
 
         artist_name = collection_name
-        local_directory = BASEDIR + '/' + artist_name
+        local_directory = "/songs/" + artist_name
+    
 
         # create folder name using artist name
         # Check if the folder doesn't exist already
-        if not os.path.exists(artist_name):
+        if not os.path.exists(local_directory):
             # Create the folder
             os.mkdir(artist_name)
             print(f"Folder '{artist_name}' created successfully.")
