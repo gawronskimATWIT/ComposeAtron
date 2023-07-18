@@ -23,17 +23,16 @@ remote_directory = "/songs"
 local_directory = BASEDIR
 
 # change the path to your ffmpeg path
-ffmpeg_path = '/usr/local/bin/ffmpeg'
 
-def downloadSong(songName, artistName):
-    query = f"ytsearch:{songName}"
+def downloadSong(songName, artistName, path):
+    query = f"ytsearch:{songName} by {artistName}"
     command = [
     'yt-dlp',
     '-x',
     '--audio-format', 'wav',
     '--audio-quality', '0',
     '-o', artistName + '/%(title)s.%(ext)s',
-    '--ffmpeg-location', ffmpeg_path,
+    '-P', path,
     query
     ]
 
@@ -47,6 +46,7 @@ def downloadSong(songName, artistName):
                 destination_path = line.replace("[ExtractAudio] Destination: ", '')
                 return destination_path
     return None
+
 
 client = MongoClient("mongodb://root:rootpassword@76.152.217.55:27017/")
 
@@ -82,15 +82,21 @@ try:
 
     # print the length of the list of collections
     # print(len(collection_names))
-    count_collection = 0
+    lastIndexFile = 'songProcessing/lastIndex.txt'
 
+    if os.path.exists(lastIndexFile):
+        with open(lastIndexFile, 'r') as file:
+            count_collection = int(file.read().strip())
+
+    index = 0
     for collection_name in collection_names:
 
         # count_song = 0
         # try to access 3 collection (artist)
-        count_collection+=1
-        if(count_collection == 2):
-            break
+        if count_collection > index:
+            continue
+       # if(count_collection == 2):
+       #    break
 
         artist_name = collection_name
         local_directory = "/songs/" + artist_name
@@ -100,68 +106,72 @@ try:
         # Check if the folder doesn't exist already
         if not os.path.exists(local_directory):
             # Create the folder
-            os.mkdir(artist_name)
             print(f"Folder '{artist_name}' created successfully.")
+
+            collection = database[collection_name]
+            documents = collection.find();
+        
+
+            for document in documents:
+                # try to download 1 song in the collection
+                # if(count_song == 1):
+                #     break
+                # count_song+=1
+
+                song_name = document['song_name']
+
+                # Download 1 song
+                wav_file_title = downloadSong(song_name, artist_name,"/songs/")
+
+                if wav_file_title:
+                    print("Creating new attribute wavPath...", wav_file_title)
+                else:
+                    print("Failed to get the wav file title.")
+                
+                # create new attribute named "wavPath" in the document mongodb
+                wav_path = remote_directory + "/" + wav_file_title
+                collection.update_one({'song_name': song_name}, {'$set': {'wavPath': wav_path}})
+
+                
+                # create remote directory path
+                remote_item_path = remote_directory + "/" + artist_name
+
+                # Create the remote directory path
+                if artist_name not in directory_items:
+                    sftp.mkdir(remote_item_path)
+
+                for item in os.listdir(local_directory):
+
+                    local_item_path = os.path.join(local_directory, item)
+                    # check if artist and item is in the remote directory, if yes then skip, if no then upload
+                    if artist_name in remote_item_path:
+                        print(f"Artist '{artist_name}' already exists in the remote directory")
+                        if item in sftp.listdir(remote_directory + "/" + artist_name):
+                            print(f"Item '{item}' already exists in the remote directory")
+                            continue
+                    
+                    if(os.path.isfile(local_item_path)):
+                        print("Uploading file: " + local_item_path)
+                        print("To: " + remote_item_path + "/" + item)
+            
+                        sftp.put(local_item_path, remote_item_path + "/" + item)
+                    else:
+                        raise IOError('Could not find localFile %s !!' % local_item_path)
+                    
+                    
         else:
             print(f"Folder '{artist_name}' already exists.")
-
-        collection = database[collection_name]
-
-        documents = collection.find();
-        for document in documents:
-            # try to download 1 song in the collection
-            # if(count_song == 1):
-            #     break
-            # count_song+=1
-
-            song_name = document['song_name']
-
-            # Download 1 song
-            wav_file_title = downloadSong(song_name, artist_name)
-
-            if wav_file_title:
-                print("Creating new attribute wavPath...", wav_file_title)
-            else:
-                print("Failed to get the wav file title.")
-            
-            # create new attribute named "wavPath" in the document mongodb
-            wav_path = remote_directory + "/" + wav_file_title
-            collection.update_one({'song_name': song_name}, {'$set': {'wavPath': wav_path}})
-
+    count_collection+=1
+    with open(lastIndexFile, 'w') as file:
+            file.write(str(count_collection))
        
-        # create remote directory path
-        remote_item_path = remote_directory + "/" + artist_name
 
-        # Create the remote directory path
-        if artist_name not in directory_items:
-            sftp.mkdir(remote_item_path)
-
-        for item in os.listdir(local_directory):
-
-            local_item_path = os.path.join(local_directory, item)
-            # check if artist and item is in the remote directory, if yes then skip, if no then upload
-            if artist_name in remote_item_path:
-                print(f"Artist '{artist_name}' already exists in the remote directory")
-                if item in sftp.listdir(remote_directory + "/" + artist_name):
-                    print(f"Item '{item}' already exists in the remote directory")
-                    continue
-            
-            if(os.path.isfile(local_item_path)):
-                print("Uploading file: " + local_item_path)
-                print("To: " + remote_item_path + "/" + item)
-     
-                sftp.put(local_item_path, remote_item_path + "/" + item)
-            else:
-                raise IOError('Could not find localFile %s !!' % local_item_path)
         
-        # remove the artist folder before moving on to another artist
-        try:
-            shutil.rmtree(artist_name)
-            print(f"Folder '{artist_name}' and its contents have been successfully deleted.")
-        except FileNotFoundError:
-            print(f"Folder '{artist_name}' does not exist.")
-        except Exception as e:
-            print(f"An error occurred while deleting folder '{artist_name}': {str(e)}")
+        
+       
+        
+        
+        
 
     # Close the SFTP session and SSH transport
     sftp.close()
