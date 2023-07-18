@@ -1,34 +1,52 @@
 import subprocess
 import os
+import paramiko
+import json
 from pymongo import MongoClient
+import pathlib
+import shutil
+
 
 # Uses yt-dlp 
 # https://github.com/yt-dlp/yt-dlp
 
-#TODO: We need to figure out how to solve the rate limiting issue/proxy issue
-
 # get the current directory
 BASEDIR = os.path.dirname(os.path.abspath(__file__))
+
+hostname = json.load(open('server.json'))['serverHostName']
+port = 22
+username = "user"
+password = json.load(open('server.json'))['serverPassword']
+remote_directory = "/songs"
+local_directory = BASEDIR
 
 # change the path to your ffmpeg path
 ffmpeg_path = '/usr/local/bin/ffmpeg'
 
-client = MongoClient('mongodb://root:rootpassword@76.152.217.55:27017')
-# db = client['Songs']
-
-def downloadSong(songName):
+def downloadSong(songName, artistName):
     query = f"ytsearch:{songName}"
     command = [
     'yt-dlp',
     '-x',
     '--audio-format', 'wav',
     '--audio-quality', '0',
-    '-o', 'youTubeWav/%(title)s.%(ext)s',
+    '-o', artistName + '/%(title)s.%(ext)s',
     '--ffmpeg-location', ffmpeg_path,
     query
     ]
 
-    subprocess.run(command)
+    # get the file downloaded name
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode == 0:
+        # Extract the destination path from the command output
+        output_lines = result.stdout.strip().split('\n')
+        for line in output_lines:
+            if line.startswith("[ExtractAudio] Destination: "):
+                destination_path = line.replace("[ExtractAudio] Destination: ", '')
+                return destination_path
+    return None
+
+client = MongoClient(json.load(open('server.json'))['mongoDB'])
 
 try:
     # Connect to the MongoDB server
@@ -38,47 +56,126 @@ try:
     database = client['Songs']
 
     print("Connection to MongoDB successful!")
-
 except Exception as e:
     print("Failed to connect to MongoDB:", str(e))
 
-# Get the list of collections in the database
-collection_names = database.list_collection_names()
+# connection to the server
+try:
+    # Establish SSH transport
+    transport = paramiko.Transport((hostname, port))
+    transport.connect(username=username, password=password)
+    print("Connection to the server successful!")
 
-# print the length of the list of collections
-# print(len(collection_names))
-count_collection = 0
+    # Create SFTP client    
+    sftp = paramiko.SFTPClient.from_transport(transport)
 
-for collection_name in collection_names:
-    # try to access 3 collection
-    count_song = 0
-    if(count_collection == 3):
-        break
-    count_collection+=1
+    # List files and directories in the remote directory
+    directory_items = sftp.listdir(remote_directory)
+    for item in directory_items:
+        print(item)
 
-    collection = database[collection_name]
-    documents = collection.find();
-    for document in documents:
-        # try to download 1 song in the collection
-        if(count_song == 1):
+
+    # Get the list of collections in the database
+    collection_names = database.list_collection_names()
+
+    # print the length of the list of collections
+    # print(len(collection_names))
+    count_collection = 0
+
+    for collection_name in collection_names:
+
+        # count_song = 0
+        # try to access 3 collection (artist)
+        count_collection+=1
+        if(count_collection == 2):
             break
 
-        count_song+=1
-        song_name = document['song_name']
-        artist_name = document['artist_name']
+        artist_name = collection_name
+        local_directory = BASEDIR + '/' + artist_name
 
-        # Download 1 song
-        downloadSong(song_name) 
+        # create folder name using artist name
+        # Check if the folder doesn't exist already
+        if not os.path.exists(artist_name):
+            # Create the folder
+            os.mkdir(artist_name)
+            print(f"Folder '{artist_name}' created successfully.")
+        else:
+            print(f"Folder '{artist_name}' already exists.")
 
-        # TODO create folder name using artist name
+        collection = database[collection_name]
 
+        documents = collection.find();
+        for document in documents:
+            # try to download 1 song in the collection
+            # if(count_song == 1):
+            #     break
+            # count_song+=1
 
-        # TODO save all the song downloads to the folder
+            song_name = document['song_name']
 
+            # Download 1 song
+            wav_file_title = downloadSong(song_name, artist_name)
+
+            if wav_file_title:
+                print("Creating new attribute wavPath...", wav_file_title)
+            else:
+                print("Failed to get the wav file title.")
+            
+            # create new attribute named "wavPath" in the document mongodb
+            wav_path = remote_directory + "/" + wav_file_title
+            collection.update_one({'song_name': song_name}, {'$set': {'wavPath': wav_path}})
+
+       
+        # create remote directory path
+        remote_item_path = remote_directory + "/" + artist_name
+
+        # Create the remote directory path
+        if artist_name not in directory_items:
+            sftp.mkdir(remote_item_path)
+
+        for item in os.listdir(local_directory):
+
+            local_item_path = os.path.join(local_directory, item)
+            # check if artist and item is in the remote directory, if yes then skip, if no then upload
+            if artist_name in remote_item_path:
+                print(f"Artist '{artist_name}' already exists in the remote directory")
+                if item in sftp.listdir(remote_directory + "/" + artist_name):
+                    print(f"Item '{item}' already exists in the remote directory")
+                    continue
+            
+            if(os.path.isfile(local_item_path)):
+                print("Uploading file: " + local_item_path)
+                print("To: " + remote_item_path + "/" + item)
+     
+                sftp.put(local_item_path, remote_item_path + "/" + item)
+            else:
+                raise IOError('Could not find localFile %s !!' % local_item_path)
         
-        # TODO upload all the folder to the server
+        # remove the artist folder before moving on to another artist
+        try:
+            shutil.rmtree(artist_name)
+            print(f"Folder '{artist_name}' and its contents have been successfully deleted.")
+        except FileNotFoundError:
+            print(f"Folder '{artist_name}' does not exist.")
+        except Exception as e:
+            print(f"An error occurred while deleting folder '{artist_name}': {str(e)}")
 
+    # Close the SFTP session and SSH transport
+    sftp.close()
     
+    # Close the SSH transport
+    transport.close()
+except paramiko.AuthenticationException:
+    print("Authentication failed. Please check your credentials.")
+except paramiko.SSHException as e:
+    print("Unable to establish SSH connection:", str(e))
+except paramiko.socket.error as e:
+    print("Connection failed:", str(e))
+
+
+
+client.close()
+
 # print("total songs: " + count_song)
 # print("total collections: " + count_collection)
 
