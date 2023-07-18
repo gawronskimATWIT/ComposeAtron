@@ -31,7 +31,7 @@ def downloadSong(songName, artistName, path):
     '-x',
     '--audio-format', 'wav',
     '--audio-quality', '0',
-    '-o', artistName + '/%(title)s.%(ext)s',
+    '-o', '/%(title)s-.%(ext)s',
     '-P', path,
     query
     ]
@@ -42,6 +42,7 @@ def downloadSong(songName, artistName, path):
         # Extract the destination path from the command output
         output_lines = result.stdout.strip().split('\n')
         for line in output_lines:
+            print(line)
             if line.startswith("[ExtractAudio] Destination: "):
                 destination_path = line.replace("[ExtractAudio] Destination: ", '')
                 return destination_path
@@ -129,34 +130,34 @@ try:
                     print("Failed to get the wav file title.")
                 
                 # create new attribute named "wavPath" in the document mongodb
-                wav_path = remote_directory + "/" + wav_file_title
+                wav_path = wav_file_title
                 collection.update_one({'song_name': song_name}, {'$set': {'wavPath': wav_path}})
 
                 
                 # create remote directory path
-                remote_item_path = remote_directory + "/" + artist_name
+                #remote_item_path = remote_directory + "/" + artist_name
 
                 # Create the remote directory path
-                if artist_name not in directory_items:
-                    sftp.mkdir(remote_item_path)
+                # if artist_name not in directory_items:
+                #     sftp.mkdir(remote_item_path)
 
-                for item in os.listdir(local_directory):
+                # for item in os.listdir(local_directory):
 
-                    local_item_path = os.path.join(local_directory, item)
-                    # check if artist and item is in the remote directory, if yes then skip, if no then upload
-                    if artist_name in remote_item_path:
-                        print(f"Artist '{artist_name}' already exists in the remote directory")
-                        if item in sftp.listdir(remote_directory + "/" + artist_name):
-                            print(f"Item '{item}' already exists in the remote directory")
-                            continue
+                #     local_item_path = os.path.join(local_directory, item)
+                #     # check if artist and item is in the remote directory, if yes then skip, if no then upload
+                #     if artist_name in remote_item_path:
+                #         print(f"Artist '{artist_name}' already exists in the remote directory")
+                #         if item in sftp.listdir(remote_directory + "/" + artist_name):
+                #             print(f"Item '{item}' already exists in the remote directory")
+                #             continue
                     
-                    if(os.path.isfile(local_item_path)):
-                        print("Uploading file: " + local_item_path)
-                        print("To: " + remote_item_path + "/" + item)
+                #     if(os.path.isfile(local_item_path)):
+                #         print("Uploading file: " + local_item_path)
+                #         print("To: " + remote_item_path + "/" + item)
             
-                        sftp.put(local_item_path, remote_item_path + "/" + item)
-                    else:
-                        raise IOError('Could not find localFile %s !!' % local_item_path)
+                #         sftp.put(local_item_path, remote_item_path + "/" + item)
+                #     else:
+                #         raise IOError('Could not find localFile %s !!' % local_item_path)
                     
                     
         else:
