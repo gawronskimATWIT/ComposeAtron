@@ -3,3 +3,4 @@ tokens.json
 .cache
 /metadata/__pycache__
 .DS_Store
+server.json
