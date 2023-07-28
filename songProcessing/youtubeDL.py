@@ -5,8 +5,10 @@ import json
 from pymongo import MongoClient
 import pathlib
 import shutil
-
-
+import re
+import concurrent.futures
+from tqdm import tqdm
+import random
 # Uses yt-dlp 
 # https://github.com/yt-dlp/yt-dlp
 
@@ -24,40 +26,111 @@ local_directory = BASEDIR
 
 # change the path to your ffmpeg path
 
+def sanitizeName(name):
+    return re.sub(r'\W+', '_', name)
+
+def changeDirectory(newDirectory):
+    currentDirectory = os.getcwd()
+    if currentDirectory != newDirectory:
+        os.chdir(newDirectory)
+    
 def downloadSong(songName, artistName, path):
 
-    
-    os.chdir("/songs")
-    try:
-        os.mkdir(artistName)
-    except:
-        FileExistsError
-        pass
+    proxies = [
+        'amsterdam.nl.socks.nordhold.net',
+        'atlanta.us.socks.nordhold.net',
+        'dallas.us.socks.nordhold.net',
+        'los-angeles.us.socks.nordhold.net',
+        'nl.socks.nordhold.net',
+        'se.socks.nordhold.net',
+        'stockholm.se.socks.nordhold.net',
+        'us.socks.nordhold.net'
+    ]
+    # Proxy credentials
+    user = 'oNmfyGaC946nd56ZqRmzH9Rm'
+    password = 'rNJEhQTcY7d1Y7gEbE9qZ8w5'
 
-    os.chdir(artistName)
+
+
+    changeDirectory("/songs")
+    # Get the full path to the artist's directory
+    artist_dir = os.path.join("/songs", artistName)
+
+    # Try to create the directory
+    try:
+        os.makedirs(artist_dir, exist_ok=True)
+    except Exception as e:
+        print(f"Failed to create directory '{artist_dir}': {e}")
+        return None
+
+    # Try to change to the directory
+    try:
+        os.chdir(artist_dir)
+    except Exception as e:
+        print(f"Failed to change to directory '{artist_dir}': {e}")
+        return None
+
+    
+    proxy = random.choice(proxies)
+    # Construct the proxy string
+    proxy_string = f"{user}:{password}@{proxy}"
+
     query = f"ytsearch:{songName} by {artistName}"
     command = [
-    'yt-dlp',
-    '-x',
-    '--audio-format', 'wav',
-    '--audio-quality', '0',
-    '-o', '%(title)s.%(ext)s',
-    query
+        'yt-dlp',
+        '-x',
+        '--audio-format', 'wav',
+        '--audio-quality', '0',
+      #  '--proxy', proxy_string,  # Add the proxy option here
+        '-o', '%(title)s.%(ext)s',
+        query
     ]
 
-    # get the file downloaded name 
+# get the file downloaded name 
     result = subprocess.run(command, capture_output=True, text=True)
     output_lines = result.stdout.strip().split('\n')
 
     if result.returncode == 0:
-        # Extract the destination path from the command output
+    # Extract the destination path from the command output
+    
+    
         for line in output_lines:
-            print(line)
-            
+        
+        
             if line.startswith("[ExtractAudio] Destination: "):
                 destination_path = line.replace("[ExtractAudio] Destination: ", '')
                 return destination_path
-    return None
+          #  else:
+               # print(f"Failed to download with proxy {proxy}. Trying the next one.")
+    return (None, output_lines)
+
+
+def processDocument(document):
+    song_name = document['song_name']
+
+    # Download 1 song
+    wav_file_title = downloadSong(song_name, artist_name,"/songs/")
+
+    if (wav_file_title is None or (isinstance(wav_file_title, list) and all(isinstance(i, str) for i in wav_file_title))):
+        print("Failed to get the wav file title.")
+        #print(wav_file_title[1])
+    else:
+        print("Creating new attribute wavPath...", wav_file_title)
+        
+    
+    # create new attribute named "wavPath" in the document mongodb
+    wav_path = f"/songs/{artist_name}/{wav_file_title}"
+    collection.update_one({'song_name': song_name}, {'$set': {'wavPath': wav_path}})
+
+   
+
+
+
+def on_future_done(future):
+    progress_bar.update()
+
+
+
 
 
 client = MongoClient("mongodb://root:rootpassword@76.152.217.55:27017/")
@@ -106,6 +179,7 @@ for collection_name in collection_names:
     # count_song = 0
     # try to access 3 collection (artist)
     if count_collection > index:
+        index += 1
         continue
     # if(count_collection == 2):
     #    break
@@ -122,60 +196,29 @@ for collection_name in collection_names:
 
         collection = database[collection_name]
         documents = collection.find();
-    
+        docCount = collection.count_documents({})
 
-        for document in documents:
-            # try to download 1 song in the collection
-            # if(count_song == 1):
-            #     break
-            # count_song+=1
+        progress_bar = tqdm(total=docCount, desc="Processing documents", dynamic_ncols=True)
 
-            song_name = document['song_name']
 
-            # Download 1 song
-            wav_file_title = downloadSong(song_name, artist_name,"/songs/")
+      
 
-            if wav_file_title:
-                print("Creating new attribute wavPath...", wav_file_title)
-            else:
-                print("Failed to get the wav file title.")
-            
-            # create new attribute named "wavPath" in the document mongodb
-            wav_path = f"/songs/{artist_name}/{wav_file_title}"
-            collection.update_one({'song_name': song_name}, {'$set': {'wavPath': wav_path}})
+        with concurrent.futures.ThreadPoolExecutor(max_workers=12) as exector:
+                #Sumbit tasks
+                results = {exector.submit(processDocument, document) for document in documents}
+                #add done for  each callback 
+                for result in results:
+                    result.add_done_callback(on_future_done)
 
-            
-            # create remote directory path
-            #remote_item_path = remote_directory + "/" + artist_name
-
-            # Create the remote directory path
-            # if artist_name not in directory_items:
-            #     sftp.mkdir(remote_item_path)
-
-            # for item in os.listdir(local_directory):  
-
-            #     local_item_path = os.path.join(local_directory, item)
-            #     # check if artist and item is in the remote directory, if yes then skip, if no then upload
-            #     if artist_name in remote_item_path:
-            #         print(f"Artist '{artist_name}' already exists in the remote directory")
-            #         if item in sftp.listdir(remote_directory + "/" + artist_name):
-            #             print(f"Item '{item}' already exists in the remote directory")
-            #             continue
-                
-            #     if(os.path.isfile(local_item_path)):
-            #         print("Uploading file: " + local_item_path)
-            #         print("To: " + remote_item_path + "/" + item)
-        
-            #         sftp.put(local_item_path, remote_item_path + "/" + item)
-            #     else:
-            #         raise IOError('Could not find localFile %s !!' % local_item_path)
+        progress_bar.close()    
+           
                 
                 
     else:
         print(f"Folder '{artist_name}' already exists.")
     index+=1
     count_collection+=1
-    os.chdir("~/ComposeAtron/songProcessing")
+    os.chdir("/home/user/ComposeAtron")
     with open(lastIndexFile, 'w') as file:
         file.write(str(count_collection))
     

@@ -44,7 +44,7 @@ for index, row in df.iterrows():
     if isRapArtist(artistName,spotify):
         
         #API Call to get artist
-        #Fo4r all the $$$ rappers
+        #For all the $$$ rappers
         artistResult = make_request(spotify.search, q='artist:' + preCleanedName, type='artist', limit = 1)
         
         time.sleep(uniform(0.1, 0.3)) # delay between each request
