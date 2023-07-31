@@ -13,6 +13,7 @@ def processAudioFiles():
     db = client["Songs"]
     #connect to remote server
     sftpClient = getClient()
+    sftpClient.connect("76.152.217.55", username="user",password="H@ppykid60")
 
     collections = db.list_collection_names()
 
