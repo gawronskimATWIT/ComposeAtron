@@ -1,6 +1,8 @@
 import paramiko
 import os
 from sftp import getClient
+import time
+
 
 def recieveFile(id,sftp,remotePath):
     with sftp.open_sftp() as sftp:
@@ -48,7 +50,7 @@ def sendFile(path, sftpClient):
         remotePath = f"/songs/{artist_name}/{file_name}"
         
         # Get the file from the remote server
-        sftp.put(path, )
+        sftp.put(path, remotePath)
 
 
 if __name__ == '__main__' :
@@ -60,8 +62,13 @@ if __name__ == '__main__' :
     directory = '/upload/'
 
     while True:
+        
         wav_files = get_unprocessed_files(directory, stemTypes)
-       
+
+        if not wav_files:
+            print("No unprocessed files found. Waiting...")
+            time.sleep(10)  # Wait for 10 seconds before checking again
+            continue
 
         for wav_file in wav_files:
             file_path = os.path.join(directory, wav_file)
@@ -77,7 +84,6 @@ if __name__ == '__main__' :
             else:
                 print(f"Failed to process {file_path}")
 
-        import time
         time.sleep(20)
 
 
