@@ -35,7 +35,20 @@ def get_unprocessed_files(directory, stemTypes):
 
 
 
-def sendFile(id):
+def sendFile(path, sftpClient):
+     with sftpClient.open_sftp() as sftp:
+        # Split the remote file name into artist name and file name
+        remote_file_name = path.split('/')[-1]
+        encoded_artist_name, file_name = remote_file_name.split('_', 1)
+        file_name = file_name.split('_', 1)[-1]
+        # Decode the artist's name by replacing underscores with spaces
+        artist_name = encoded_artist_name.replace('_', ' ')
+        
+        # Construct the local path using the artist's name
+        remotePath = f"/songs/{artist_name}/{file_name}"
+        
+        # Get the file from the remote server
+        sftp.put(path, )
 
 
 if __name__ == '__main__' :
@@ -57,10 +70,7 @@ if __name__ == '__main__' :
             if success:
                 print(f"Successfully processed {file_path}")
 
-                sendFile(ith sftp.open_sftp() as sftp:
-            localPath = f"./recieved/{id}.wav"
-        sftp.get(remotePath,localPath)
-)
+                sendFile(file_path, sftpClient)
 
 
                 

@@ -13,6 +13,7 @@ def processAudioFiles():
     db = client["Songs"]
     #connect to remote server
     sftpClient = getClient()
+    key = paramiko.RSAKey(filename="/home/user/vastKey.pem")
     sftpClient.connect("192.168.1.8", username="foo",password="pass")
 
     collections = db.list_collection_names()
@@ -46,9 +47,12 @@ def processAudioFiles():
 
 
 def sendFile(path,sftpClient):
-
     with sftpClient.open_sftp() as sftp:
-        remoteFilePath = "/upload/" + path.split('/')[-1]
+        artist_name = path.split('/')[-2]  # Get the artist's name
+        file_name = path.split('/')[-1]    # Get the file name
+        encoded_artist_name = artist_name.replace(' ', '_') # Replace spaces with underscores
+        remote_file_name = f"{encoded_artist_name}_{file_name}"
+        remoteFilePath = "/upload/" + remote_file_name
         sftp.put(path, remoteFilePath)
 
 #def processFile(id):
