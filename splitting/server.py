@@ -13,7 +13,7 @@ def processAudioFiles():
     db = client["Songs"]
     #connect to remote server
     sftpClient = getClient()
-    sftpClient.connect("76.152.217.55", username="user",password="H@ppykid60")
+    sftpClient.connect("192.168.1.8", username="foo",password="pass")
 
     collections = db.list_collection_names()
 
@@ -27,8 +27,12 @@ def processAudioFiles():
 
         for doc in documents:
 
-            if isNone(doc['wavPath']):
-                continue
+            try:
+                if isNone(doc['wavPath']):
+                    continue
+            except KeyError:
+                    continue
+
 
             sendFile(doc['wavPath'],sftpClient)
             
@@ -44,7 +48,7 @@ def processAudioFiles():
 def sendFile(path,sftpClient):
 
     with sftpClient.open_sftp() as sftp:
-        remoteFilePath = "/songs/" + path.split('/')[-1]
+        remoteFilePath = "/upload/" + path.split('/')[-1]
         sftp.put(path, remoteFilePath)
 
 #def processFile(id):
