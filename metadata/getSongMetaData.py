@@ -14,7 +14,7 @@ from requests.exceptions import ReadTimeout
 
 spotify = SpotifyAuth.getSpotify()
 df = pd.read_csv('dataprocessing/rapHiphopArtists.csv')
-client = MongoClient('mongodb://root:rootpassword@192.168.1.73:27017/')
+client = MongoClient('')
 db = client['Songs']
 
 # Define retry mechanism for handling rate limits
