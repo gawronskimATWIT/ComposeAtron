@@ -47,8 +47,7 @@ def downloadSong(songName, artistName, path):
         'us.socks.nordhold.net'
     ]
     # Proxy credentials
-    user = 'oNmfyGaC946nd56ZqRmzH9Rm'
-    password = 'rNJEhQTcY7d1Y7gEbE9qZ8w5'
+
 
 
 
@@ -133,7 +132,7 @@ def on_future_done(future):
 
 
 
-client = MongoClient("mongodb://root:rootpassword@76.152.217.55:27017/")
+client = MongoClient("")
 
 try:
     # Connect to the MongoDB server
