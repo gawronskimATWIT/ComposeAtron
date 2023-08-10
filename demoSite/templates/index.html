@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Demos</title>
+</head>
+<body>
+
+<h2>Audio Demos</h2>
+<div>
+Each around the half way point for each file that is where the model kicks in and starts composing.
+
+Also, Each level pertains to which stage of upsampling the sample is on, with Level2 being the lowest level of upsampling.
+</div>
+
+{% for audio in audio_files %}
+<div>
+    <h3>{{ audio.title }}</h3>
+
+    <div>
+        <h4>Level 2</h4>
+        <audio controls>
+            <source src="{{ audio.level_1 }}" type="audio/{{ audio.level_2.split('.')[-1] }}">
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+
+    <div>
+        <h4>Level 1</h4>
+        <audio controls>
+            <source src="{{ audio.level_2 }}" type="audio/{{ audio.level_1.split('.')[-1] }}">
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+
+    <div>
+        <h4>Level 0</h4>
+        <audio controls>
+            <source src="{{ audio.level_3 }}" type="audio/{{ audio.level_0.split('.')[-1] }}">
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+
+</div>
+{% endfor %}
+
+</body>
+</html>
